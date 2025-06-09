@@ -26,6 +26,7 @@ const engine = [_]NameAndModulePath {
     .{ .name = "debug", .path = "src/engine/debug.zig" },
     .{ .name = "files", .path = "src/engine/files.zig" },
     .{ .name = "math", .path = "src/engine/math.zig" },
+    .{ .name = "memory", .path = "src/engine/memory.zig" },
     .{ .name = "graphics", .path = "src/engine/graphics.zig" },
 };
 
@@ -40,6 +41,8 @@ pub fn build (b: *Build) !void
 
     //const target = b.resolveTargetQuery(.{ .os_tag = .macos });
 
+    const imports = engine ++ fluid;
+
     if (target.result.cpu.arch.isWasm())
     {
         const exe = b.addExecutable(.{
@@ -53,7 +56,7 @@ pub fn build (b: *Build) !void
 
         // exe.root_module.export_symbol_names
 
-        addImports(b, exe.root_module, &engine ++ &fluid);
+        addImports(b, exe.root_module, &imports);
         b.installArtifact(exe);
     }
     else if (target.result.os.tag == .macos)
@@ -85,7 +88,7 @@ pub fn build (b: *Build) !void
         // exe_lib.entry = .disabled;
 
         // addCommonImports(b, exe.root_module);
-        addImports(b, exe.root_module, &engine ++ &fluid); // TODO why do I need dereference here?
+        addImports(b, exe.root_module, &imports);
         addLibrariesOSX(b, target, exe);
 
         // TODO come back to it when new Zig version will release

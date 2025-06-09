@@ -1,10 +1,13 @@
 const std = @import("std");
 const app = @import("app");
 const debug = @import("debug");
+const memory = @import("memory");
 
 pub var exe_path: []const u8 = undefined;
 
 var exe_path_buffer: [1024]u8 = undefined; // TODO test if it affects wasm build size;
+
+const max_file_size = memory.megabytesToBytes(3);
 
 pub fn init () !void
 {
@@ -32,19 +35,9 @@ pub fn loadFile (allocator: std.mem.Allocator, fileName: []const u8) !?[]const u
     };
     defer file.close();
 
-    const buffer = try file.readToEndAlloc(allocator, comptime kilobytesToBytes(32));
+    const buffer = try file.readToEndAlloc(allocator, max_file_size);
     // const bytes_read = try file.reader().readAll(buf: []u8)
     return buffer;
-}
-
-fn kilobytesToBytes (kb: usize) usize
-{
-    return kb * 1000;
-}
-
-fn megabytesToBytes (mb: usize) usize
-{
-    return mb * 1000 * 1000;
 }
 
 // const dir = try std.fs.cwd().openDir(".", .{ .iterate = true });

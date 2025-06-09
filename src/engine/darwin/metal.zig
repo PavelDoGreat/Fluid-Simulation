@@ -2,17 +2,15 @@ const std = @import("std");
 const app = @import("app");
 const math = @import("math");
 const debug = @import("debug");
+const graphics = @import("graphics");
 
 extern fn createLibraryFromData_metal (data_ptr: [*]const u8, data_len: usize) ?*anyopaque;
 extern fn createFunction_metal (name: [*:0]const u8, library: ?*anyopaque) ?*anyopaque;
 extern fn createPipelineVertFrag_metal (name: [*:0]const u8, vert: ?*anyopaque, frag: ?*anyopaque) ?*anyopaque;
 
-// TODO perfect hashing of every state
-// TODO do all the hashing comptime
-
 pub const Material = struct
 {
-    mtl_pipeline: *anyopaque,
+    active_mtl_pipeline: *anyopaque = 0,
     pipeline: *Pipelines, // only invoked when keywords or blending changes, so no cache misses most of the time
 
     // uniforms
@@ -28,13 +26,25 @@ pub const Material = struct
 
 const Metal = struct
 {
-    // var libraries: [] *anyopaque = undefined;
-    // var functions: [] Function = undefined;
-    // var pipelines: [] Function = undefined;
+    allocator: std.mem.Allocator = undefined,
 
-    // TODO
-    // functions: std.AutoHashMap(usize, []Functions), // k: library_group, v: 
+    mtl_function_idx_counter: usize = 0,
+
+    libraries: std.AutoHashMap(usize, *anyopaque) = undefined, // k: library_group
+    functions: std.AutoHashMap(usize, Functions) = undefined, // k: FunctionParam hash
+    pipelines: std.AutoHashMap(usize, Pipelines) = undefined, // k: Pipelines hash
 };
+
+var metal: Metal = .{};
+
+pub fn init (allocator: std.mem.Allocator) void
+{
+    metal.allocator = allocator;
+
+    metal.libraries = std.AutoHashMap(usize, *anyopaque).init(allocator);
+    metal.functions = std.AutoHashMap(usize, Functions).init(allocator);
+    metal.pipelines = std.AutoHashMap(usize, Pipelines).init(allocator);
+}
 
 pub fn createLibraryGroup (comptime name: []const u8) usize
 {
@@ -44,51 +54,108 @@ pub fn createLibraryGroup (comptime name: []const u8) usize
 
 pub fn createLibrary (data: []const u8, library_group: usize) void
 {
-    _ = library_group;
-
     const library = createLibraryFromData_metal(data.ptr, data.len);
     const vert = createFunction_metal("vertexShader", library);
     const frag = createFunction_metal("fragmentShader", library);
     _ = createPipelineVertFrag_metal("Simple Pipeline", vert, frag);
+
+    if (library) |lib|
+    {
+        metal.libraries.put(library_group, lib) catch unreachable;
+    }
 }
 
-pub fn createPipeline (vert: FunctionParam, frag: FunctionParam) void
+pub fn initMaterial (vert: graphics.FunctionParam, frag: graphics.FunctionParam) Material
 {
     _ = vert;
     _ = frag;
+
+    // return .{ .pipeline =  };
 }
 
-// TODO figure out how to have a comptime FunctionParam. It is for commonly used shaders
-const FunctionParam = struct
+fn getPipelines (vert_param: graphics.FunctionParam, frag_param: graphics.FunctionParam) ?*Pipelines
 {
-    function_name: []const u8,
-    library_group: usize = 0,
-    // hash comptime computed from name + library_group
-};
+    const vert = getFunctions(vert_param) orelse return null;
+    const frag = getFunctions(frag_param) orelse return null;
+
+    putMTLFunction(vert.?, vert_param);
+    putMTLFunction(frag.?, frag_param);
+
+    const hash = Pipelines.getHash(vert.?.unique_idx, frag.?.unique_idx);
+    var pipelines = metal.pipelines.get(hash);
+    if (pipelines == null)
+    {
+        pipelines = Pipelines.new(metal.allocator, vert.?, frag.?);
+        metal.pipelines.put(hash, pipelines);
+    }
+    return pipelines;
+}
+
+fn getFunctions (param: graphics.FunctionParam) ?*Functions
+{
+    var functions = metal.functions.get(param.hash);
+    if (functions == null)
+    {
+        functions = Functions.new(metal.allocator);
+        metal.functions.put(param.hash, functions);
+    }
+    return functions;
+}
+
+fn putMTLFunction (self: *Functions, param: graphics.FunctionParam) void
+{
+    const library = getLibrary(param.library_group) orelse return;
+
+    const has_mtlfunction = self.mtl_functions.contains(param.function_name);
+    if (!has_mtlfunction)
+    {
+        const mtlfunction = createFunction_metal(param.function_name, library) orelse return;
+        self.mtl_functions.put(param.name_hash, mtlfunction);
+    }
+}
+
+fn getLibrary (param: graphics.FunctionParam) ?*anyopaque
+{
+    const library = metal.libraries.get(param.library_group);
+    return library;
+}
 
 const Pipelines = struct
 {
-    // mtl_pipeline: *anyopaque,
-
     vert: *Functions,
     frag: *Functions,
     // compute: *ComputeFunction,
-
     // blending, etc...
+    mtl_pipelines: std.AutoHashMap(usize, *anyopaque), // hash computed to identify unique mtl_pipeline from keywords + blending
 
-    // all mtlpipeline combos
-    mtl_pipelines: [] *anyopaque,
+    pub fn new (allocator: std.mem.Allocator, vert: *Functions, frag: *Functions) Pipelines
+    {
+        return .{
+            .vert = vert,
+            .frag = frag,
+            .mtl_pipelines = std.AutoHashMap(usize, *anyopaque).init(allocator),
+        };
+    }
 
-    // hash computed from unique vert + frag combo
-    // and hash computed to identify unique mtl_pipeline from keywords + blending
+    pub fn getHash (vert_idx: usize, frag_idx: usize) usize
+    {
+        return vert_idx * 100_000 + frag_idx;
+    }
 };
 
-// TODO setKeyword func
 // MTLFunction with all its keywords combination
 const Functions = struct
 {
-    // library_group: usize = 0,
-    mtl_functions: [] *anyopaque,
+    unique_idx: usize,
+    mtl_functions: std.AutoHashMap(usize, *anyopaque),
 
-    // hash from FunctionParam
+    pub fn new (allocator: std.mem.Allocator) Functions
+    {
+        metal.mtl_function_idx_counter += 1;
+
+        return .{
+            .unique_idx = metal.mtl_function_idx_counter,
+            .mtl_functions = std.AutoHashMap(usize, *anyopaque).init(allocator),
+        };
+    }
 };

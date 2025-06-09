@@ -1,9 +1,17 @@
+const std = @import("std");
 const app = @import("app");
+const math = @import("math");
 const debug = @import("debug");
 const metal = @import("darwin/metal.zig");
 
 pub fn init () void
 {
+    const allocator = std.heap.c_allocator;
+
+    if (comptime app.graphics_api == .metal)
+    {
+        metal.init(allocator);
+    }
 }
 
 // Combines multiple libraries and shader files under 1 id. No duplicate function names allowed.
@@ -39,7 +47,39 @@ pub fn blit () void
 // TODO union with platform's implementation of Material
 pub const Material = struct
 {
-    // metal.Material
+    internal: metal.Material,
+    vert: FunctionParam,
+    frag: FunctionParam,
+
+    pub fn new (vert: FunctionParam, frag: FunctionParam) Material
+    {
+        return .{ .vert = vert, .frag = frag };
+    }
+
+    pub fn init (self: Material) void
+    {
+        if (comptime app.graphics_api == .metal)
+        {
+            self.internal = metal.initMaterial(self.vert, self.frag);
+        }
+    }
+};
+
+const FunctionParam = struct
+{
+    hash: usize,
+    name_hash: usize,
+    function_name: []const u8,
+    library_group: usize,
+
+    pub fn new (comptime function_name: []const u8, comptime library_group: usize) FunctionParam
+    {
+        const name_hash = comptime math.perfectHash(function_name);
+        var hash = name_hash & 0x03FFFFFF;
+        hash |= (@as(u32, library_group) << 26); // TODO do I need cast?
+
+        return .{ .hash = hash, .name_hash = name_hash, .function_name = function_name, .library_group = library_group };
+    }
 };
 
 pub const RenderTarget = struct

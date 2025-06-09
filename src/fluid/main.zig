@@ -1,8 +1,9 @@
 const std = @import("std");
 const app = @import("app");
 const debug = @import("debug");
-const native = @import("native");
 const files = @import("files");
+const native = @import("native");
+const graphics = @import("graphics");
 
 const resources = @import("library/resources.zig");
 
@@ -23,6 +24,7 @@ export fn start () void
     // debug.log("Platform: {s}", .{ @tagName(app.platform) });
     // debug.log("Exe path: {s}", .{ files.exe_path });
 
+    graphics.init();
     resources.load();
 
     // wasm build size grows quickly with every log

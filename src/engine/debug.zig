@@ -28,6 +28,7 @@ pub fn log (comptime format: []const u8, args: anytype) void
             // const log_wasm_buffer = allocator.alloc(u8, format.len) catch { return; };
 
             const message = std.fmt.comptimePrint(format, args);
+            // std.fmt.allocPrint(allocator: mem.Allocator, comptime fmt: []const u8, args: anytype)
             // const message = std.fmt.bufPrint(&log_wasm_buffer, format, args) catch return;
             // const ptr = @intFromPtr(&log_wasm_buffer[0]);
             const ptr = @intFromPtr(message);

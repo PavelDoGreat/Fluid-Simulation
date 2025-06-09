@@ -7,25 +7,42 @@ const materials = @import("materials");
 
 // TODO async file loading
 // TODO arena allocator
-// TODO fast stack allocator for small files
 pub fn load () void
 {
+    // var buffer: [10000]u8 = undefined;
+    // var fixed = std.heap.FixedBufferAllocator.init(&buffer);
+    // const allocator = fixed.allocator();//std.heap.FixedBufferAllocator.init(&buffer);
+    // defer allocator
+// std.ArrayList(u32).init(allocator: Allocator)
+
+    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    // defer arena.deinit();
+
+    // const allocator = arena.allocator();
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    // gpa.deinit(self: *Self)
+    // std.heap.ArenaAllocator
+
+    debug.startTimer();
+
     if (comptime app.graphics_api == .metal)
     {
-        loadShaderFile("shader.metallib", materials.fluid_group);
+        loadShaderFile(allocator, "shader.metallib", materials.fluid_group);
     }
+
+    debug.printTimer();
 }
 
-fn loadShaderFile (shaderName: []const u8, library_group: usize) void
+fn loadShaderFile (allocator: std.mem.Allocator, shaderName: []const u8, library_group: usize) void
 {
-    // debug.startTimer();
-    const allocator = std.heap.page_allocator;
     const buffer = files.loadFile(allocator, shaderName) catch unreachable;
-    // debug.printTimer();
 
     if (buffer) |buf|
     {
-        defer allocator.free(buf);
         graphics.createLibrary(buf, library_group);
+        allocator.free(buf);
     }
 }
