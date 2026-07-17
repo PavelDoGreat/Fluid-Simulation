@@ -4,7 +4,11 @@
 
 <br/>
 
-*This project will be a complete rewrite of my mobile app Fluid Simulation. It will be done in an open-source way and hopefully will inspire many people around the world.*
+*I was planning to rewrite Fluid Simulation in Zig but then decided to stay with Unity - as name of the engine is not a coincidence, right? In a future it will be written in a open-source way and hopefully will inspire many people around the world, along with Unity Engine's team.*
+
+<br/>
+
+***Check the open-sourced WebGL Fluid Simulation:*** https://github.com/PavelDoGreat/WebGL-Fluid-simulation
 
 <br/>
 
@@ -14,6 +18,8 @@ Here are the links to the app:
 - **iOS/Mac:** https://itunes.apple.com/app/fluid-simulation/id1443124993  
 
 <br/>
+
+*I wrote this in 2025:*
 
 The app is currently developed using Unity Engine, which is the cause of many app's issues, including bugs, high energy consumption, and poor performance. In addition, it has not been the best experience for me as a developer, and I see that it can be much better. I have been developing this app for 7 years and have some experience with coding.
 
@@ -35,11 +41,6 @@ Software that aligns with eternal laws is beautiful and harmonious. It will exis
 With great software there will be no place for the unoptimized noise that tries to control minds of the people.
 And soon there will be new Heaven on Earth and people will see again the glory of God.***
 
-I will later post a link here describing natural laws in more details. Right now you can go to my X profile and publicly ask me questions 
-https://x.com/PavelDoGreat
-
-You can also check my X post about app's price reduction that should be a standard practice among businessmen
-https://x.com/PavelDoGreat/status/1890253379789812206
 
 ## How to build
 
